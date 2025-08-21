@@ -36,11 +36,12 @@ st.markdown("""
         text-align: center;
     }
     .step-container {
-        background: #f8f9fa;
-        padding: 1.5rem;
-        border-radius: 10px;
-        border-left: 5px solid #2e75b6;
+        background: #ffffff;
+        padding: 2rem;
+        border-radius: 15px;
+        border: 1px solid #e0e0e0;
         margin-bottom: 2rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .success-box {
         background: #d4edda;
@@ -56,6 +57,18 @@ st.markdown("""
         border-radius: 8px;
         border: 2px dashed #2196f3;
         margin: 1rem 0;
+    }
+    .file-upload-area {
+        border: 2px dashed #cccccc;
+        border-radius: 10px;
+        padding: 2rem;
+        text-align: center;
+        margin: 1rem 0;
+        background: #fafafa;
+    }
+    .file-upload-area:hover {
+        border-color: #2196f3;
+        background: #f0f8ff;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -111,32 +124,76 @@ def crear_descargable(df, nombre_archivo, descripcion):
 st.markdown('<div class="step-container">', unsafe_allow_html=True)
 st.header("🔍 Paso 1: Validación de Ausentismos")
 
+# Instrucciones claras
+st.markdown("""
+<div style="background: #e3f2fd; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid #2196f3;">
+    <h4 style="margin-top: 0; color: #1976d2;">📋 ¿Qué necesitas hacer?</h4>
+    <p style="margin-bottom: 0;">1. Sube el archivo <strong>Base de Diagnósticos</strong> 2. Sube el archivo <strong>Reporte 45</strong> 3. Presiona el botón para validar</p>
+</div>
+""", unsafe_allow_html=True)
+
 col1, col2 = st.columns(2)
 
 with col1:
-    st.subheader("📂 Base de Diagnósticos")
+    st.markdown("### 📂 Archivo 1: Base de Diagnósticos")
     archivo_base = st.file_uploader(
-        "Selecciona el archivo base (Excel)",
+        "Arrastra aquí tu archivo Excel de diagnósticos",
         type=['xlsx', 'xls'],
         key="base",
-        help="Archivo que contiene la base de diagnósticos de ausentismos"
+        help="Este es el archivo base con los diagnósticos de ausentismos"
     )
+    
+    if archivo_base:
+        st.success("✅ Archivo Base cargado correctamente")
+    else:
+        st.info("⬆️ Sube aquí el archivo de diagnósticos (.xlsx)")
 
 with col2:
-    st.subheader("📊 Reporte 45")
+    st.markdown("### 📊 Archivo 2: Reporte 45")
     archivo_reporte = st.file_uploader(
-        "Selecciona el archivo reporte (Excel)", 
+        "Arrastra aquí tu archivo Excel del Reporte 45", 
         type=['xlsx', 'xls'],
         key="reporte",
-        help="Archivo del reporte 45 con datos de ausentismos"
+        help="Este es el reporte 45 con datos de ausentismos"
     )
-
-if archivo_base and archivo_reporte:
-    st.info("✅ Ambos archivos cargados. Listos para validación.")
     
-    if st.button("🚀 Ejecutar Validación", type="primary", use_container_width=True):
+    if archivo_reporte:
+        st.success("✅ Reporte 45 cargado correctamente")
+    else:
+        st.info("⬆️ Sube aquí el Reporte 45 (.xlsx)")
+
+# Estado de los archivos
+if archivo_base and archivo_reporte:
+    st.markdown("""
+    <div style="background: #d4edda; padding: 1rem; border-radius: 8px; margin: 1rem 0; text-align: center;">
+        <h3 style="color: #155724; margin: 0;">🎉 ¡PERFECTO! Ambos archivos están listos</h3>
+        <p style="margin: 0.5rem 0 0 0;">Ahora puedes procesar los datos</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if st.button("🚀 PROCESAR ARCHIVOS", type="primary", use_container_width=True):
+elif archivo_base and not archivo_reporte:
+    st.markdown("""
+    <div style="background: #fff3cd; padding: 1rem; border-radius: 8px; margin: 1rem 0; text-align: center;">
+        <h4 style="color: #856404; margin: 0;">⚠️ Falta el Reporte 45</h4>
+        <p style="margin: 0.5rem 0 0 0;">Sube también el archivo del Reporte 45 para continuar</p>
+    </div>
+    """, unsafe_allow_html=True)
+elif not archivo_base and archivo_reporte:
+    st.markdown("""
+    <div style="background: #fff3cd; padding: 1rem; border-radius: 8px; margin: 1rem 0; text-align: center;">
+        <h4 style="color: #856404; margin: 0;">⚠️ Falta la Base de Diagnósticos</h4>
+        <p style="margin: 0.5rem 0 0 0;">Sube también el archivo de diagnósticos para continuar</p>
+    </div>
+    """, unsafe_allow_html=True)
+else:
+    st.markdown("""
+    <div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; margin: 1rem 0; text-align: center; border: 2px dashed #dee2e6;">
+        <h3 style="color: #6c757d; margin: 0;">📁 Sube tus 2 archivos Excel</h3>
+        <p style="margin: 0.5rem 0 0 0; color: #6c757d;">Arrastra los archivos a las cajas de arriba o haz clic para seleccionarlos</p>
+    </div>
+    """, unsafe_allow_html=True)
         with st.spinner("🔄 Procesando validación..."):
-            try:
                 # Guardar archivos temporalmente
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                 ruta_base = f"temp/base_{timestamp}.xlsx"
@@ -203,25 +260,48 @@ st.markdown('<div class="step-container">', unsafe_allow_html=True)
 st.header("🏪 Paso 2: Agregar Información de Tiendas")
 
 if 'ruta_validado' not in st.session_state:
-    st.warning("⚠️ Primero completa el Paso 1: Validación")
+    st.markdown("""
+    <div style="background: #f8d7da; padding: 2rem; border-radius: 8px; margin: 1rem 0; text-align: center;">
+        <h3 style="color: #721c24; margin: 0;">🚫 Primero completa el Paso 1</h3>
+        <p style="margin: 0.5rem 0 0 0; color: #721c24;">Necesitas validar los datos antes de agregar las tiendas</p>
+    </div>
+    """, unsafe_allow_html=True)
 else:
-    st.success("✅ Datos validados disponibles para procesar")
+    st.markdown("""
+    <div style="background: #d1ecf1; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid #17a2b8;">
+        <h4 style="margin-top: 0; color: #0c5460;">✅ Datos validados listos</h4>
+        <p style="margin-bottom: 0;">Ahora agrega el archivo de tiendas para completar el proceso</p>
+    </div>
+    """, unsafe_allow_html=True)
     
-    st.subheader("📊 Archivo de Tiendas")
+    st.markdown("### 🏪 Archivo de Tiendas")
     archivo_tiendas = st.file_uploader(
-        "Selecciona el archivo de tiendas (Excel)",
+        "Arrastra aquí tu archivo Excel de tiendas",
         type=['xlsx', 'xls'],
         key="tiendas",
         help="Archivo que contiene información de tiendas y centros de coste"
     )
     
     if archivo_tiendas:
-        st.info("✅ Archivo de tiendas cargado.")
+        st.success("✅ Archivo de tiendas cargado correctamente")
         
-        if st.button("🔗 Agregar Tiendas", type="primary", use_container_width=True):
+        st.markdown("""
+        <div style="background: #d4edda; padding: 1rem; border-radius: 8px; margin: 1rem 0; text-align: center;">
+            <h3 style="color: #155724; margin: 0;">🎯 ¡TODO LISTO PARA PROCESAR!</h3>
+            <p style="margin: 0.5rem 0 0 0;">Presiona el botón para agregar las tiendas</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if st.button("🔗 AGREGAR TIENDAS", type="primary", use_container_width=True):
             with st.spinner("🔄 Agregando información de tiendas..."):
+    else:
+        st.markdown("""
+        <div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; margin: 1rem 0; text-align: center; border: 2px dashed #dee2e6;">
+            <h3 style="color: #6c757d; margin: 0;">🏪 Sube el archivo de tiendas</h3>
+            <p style="margin: 0.5rem 0 0 0; color: #6c757d;">Arrastra el archivo Excel con datos de tiendas</p>
+        </div>
+        """, unsafe_allow_html=True)
                 try:
-                    # Guardar archivo de tiendas temporalmente
                     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                     ruta_tiendas = f"temp/tiendas_{timestamp}.xlsx"
                     
