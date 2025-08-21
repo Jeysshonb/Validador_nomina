@@ -24,67 +24,183 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# CSS personalizado - MÁS LIMPIO
+# CSS personalizado - ADAPTABLE CLARO/OSCURO
 st.markdown("""
 <style>
+    /* Variables para modo claro y oscuro */
+    :root {
+        --bg-primary: #ffffff;
+        --bg-secondary: #f8f9fa;
+        --text-primary: #000000;
+        --text-secondary: #6c757d;
+        --border-color: #dee2e6;
+        --success-bg: #d4edda;
+        --success-text: #155724;
+        --success-border: #c3e6cb;
+        --warning-bg: #fff3cd;
+        --warning-text: #856404;
+        --warning-border: #ffeaa7;
+        --error-bg: #f8d7da;
+        --error-text: #721c24;
+        --error-border: #f5c6cb;
+    }
+    
+    /* Modo oscuro */
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --bg-primary: #0e1117;
+            --bg-secondary: #262730;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --border-color: #30363d;
+            --success-bg: #0d4429;
+            --success-text: #4caf50;
+            --success-border: #2ea043;
+            --warning-bg: #332b00;
+            --warning-text: #ffeb3b;
+            --warning-border: #ffd700;
+            --error-bg: #4a1c1c;
+            --error-text: #ff6b6b;
+            --error-border: #dc3545;
+        }
+    }
+    
+    /* Detectar tema de Streamlit */
+    [data-theme="dark"], .stApp[data-theme="dark"] {
+        --bg-primary: #0e1117;
+        --bg-secondary: #262730;
+        --text-primary: #ffffff;
+        --text-secondary: #a0a0a0;
+        --border-color: #30363d;
+        --success-bg: #0d4429;
+        --success-text: #4caf50;
+        --success-border: #2ea043;
+        --warning-bg: #332b00;
+        --warning-text: #ffeb3b;
+        --warning-border: #ffd700;
+        --error-bg: #4a1c1c;
+        --error-text: #ff6b6b;
+        --error-border: #dc3545;
+    }
+
     .main-header {
         background: linear-gradient(90deg, #1f4e79 0%, #2e75b6 100%);
-        color: white;
+        color: white !important;
         padding: 1.5rem;
         border-radius: 10px;
         margin-bottom: 2rem;
         text-align: center;
     }
+    
     .step-container {
-        background: #ffffff;
+        background: var(--bg-primary) !important;
+        color: var(--text-primary) !important;
         padding: 1.5rem;
         border-radius: 10px;
-        border: 1px solid #ddd;
+        border: 1px solid var(--border-color);
         margin-bottom: 1.5rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
+    
     .status-success {
-        background: #d4edda;
-        color: #155724;
+        background: var(--success-bg) !important;
+        color: var(--success-text) !important;
         padding: 1rem;
         border-radius: 8px;
         margin: 1rem 0;
         text-align: center;
-        border: 1px solid #c3e6cb;
+        border: 1px solid var(--success-border);
     }
+    
     .status-warning {
-        background: #fff3cd;
-        color: #856404;
+        background: var(--warning-bg) !important;
+        color: var(--warning-text) !important;
         padding: 1rem;
         border-radius: 8px;
         margin: 1rem 0;
         text-align: center;
-        border: 1px solid #ffeaa7;
+        border: 1px solid var(--warning-border);
     }
+    
     .status-error {
-        background: #f8d7da;
-        color: #721c24;
+        background: var(--error-bg) !important;
+        color: var(--error-text) !important;
         padding: 1rem;
         border-radius: 8px;
         margin: 1rem 0;
         text-align: center;
-        border: 1px solid #f5c6cb;
+        border: 1px solid var(--error-border);
     }
+    
     .upload-zone {
-        background: #f8f9fa;
-        border: 2px dashed #dee2e6;
+        background: var(--bg-secondary) !important;
+        color: var(--text-secondary) !important;
+        border: 2px dashed var(--border-color);
         border-radius: 8px;
         padding: 1.5rem;
         text-align: center;
         margin: 1rem 0;
     }
+    
+    .upload-zone:hover {
+        border-color: #2196f3 !important;
+        background: rgba(33, 150, 243, 0.1) !important;
+    }
+    
     .metrics-container {
-        background: #f8f9fa;
+        background: var(--bg-secondary) !important;
+        color: var(--text-primary) !important;
         padding: 1rem;
         border-radius: 8px;
         margin: 1rem 0;
+        border: 1px solid var(--border-color);
+    }
+    
+    /* Fix para texto en contenedores */
+    .step-container h1, .step-container h2, .step-container h3, .step-container h4, .step-container h5, .step-container h6 {
+        color: var(--text-primary) !important;
+    }
+    
+    .step-container p, .step-container span, .step-container div {
+        color: var(--text-primary) !important;
+    }
+    
+    /* Fix específico para modo oscuro de Streamlit */
+    .stApp[theme-base="dark"] .step-container {
+        background: #262730 !important;
+        color: #ffffff !important;
+        border: 1px solid #30363d !important;
+    }
+    
+    .stApp[theme-base="dark"] .upload-zone {
+        background: #1a1a1a !important;
+        color: #ffffff !important;
+        border: 2px dashed #444 !important;
     }
 </style>
+
+<script>
+// Detectar tema automáticamente
+function detectTheme() {
+    const streamlitDoc = window.parent.document;
+    const isDark = streamlitDoc.querySelector('[data-theme="dark"]') || 
+                   streamlitDoc.body.classList.contains('dark') ||
+                   window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    if (isDark) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+        document.documentElement.setAttribute('data-theme', 'light');
+    }
+}
+
+// Ejecutar al cargar y cuando cambie el tema
+detectTheme();
+new MutationObserver(detectTheme).observe(window.parent.document.body, {
+    attributes: true,
+    subtree: true
+});
+</script>
 """, unsafe_allow_html=True)
 
 # Header principal
