@@ -465,25 +465,24 @@ if archivo_validado and archivo_tiendas:
                 if 'value_tienda' in df_final.columns:
                     log_container.info("🔧 FORZANDO limpieza de value_tienda en la app...")
                     
-                    # Función para quitar SOLO el último 0
-                    def quitar_ultimo_cero_forzado(valor):
-                        valor_str = str(valor)
-                        if valor_str.endswith('0') and len(valor_str) > 1:
-                            return valor_str[:-1]  # Quitar solo el último carácter
-                        return valor_str
+                    # CONVERTIR A STRING INMEDIATAMENTE
+                    df_final['value_tienda'] = df_final['value_tienda'].astype(str)
                     
                     # ANTES de limpiar
                     antes = df_final['value_tienda'].head(5).tolist()
                     log_container.info(f"🔍 ANTES de limpiar: {antes}")
                     
-                    # LIMPIAR FORZADO
-                    df_final['value_tienda'] = df_final['value_tienda'].apply(quitar_ultimo_cero_forzado)
+                    # LIMPIAR: quitar .0, puntos y último cero
+                    df_final['value_tienda'] = (df_final['value_tienda']
+                                               .str.replace('.0', '', regex=False)  # Quitar .0
+                                               .str.rstrip('.')                     # Quitar punto final
+                                               .apply(lambda x: x[:-1] if x.endswith('0') and len(x) > 1 else x))  # Quitar último 0
                     
                     # DESPUÉS de limpiar
                     despues = df_final['value_tienda'].head(5).tolist()
-                    log_container.info(f"✅ DESPUÉS de limpiar: {despues}")
+                    log_container.info(f"✅ LIMPIEZA COMPLETA: {despues}")
                 
-                log_container.success(f"✅ PROCESO GITHUB + LIMPIEZA FORZADA: {len(df_final):,} registros")
+                log_container.success(f"✅ PROCESO GITHUB + STRING LIMPIO: {len(df_final):,} registros")
                 progress_bar.progress(95)
                 
                 st.success(f"🎉 ¡ÉXITO CON CÓDIGO GITHUB! - {len(df_final):,} registros procesados")
