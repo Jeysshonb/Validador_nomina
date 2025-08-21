@@ -277,11 +277,11 @@ if archivo_base and archivo_reporte:
             progress_bar.progress(30)
             
             # Ejecutar validación con logs
-            log_container.info("🔍 Ejecutando validación de ausentismos...")
+            log_container.info("🔍 Ejecutando validar_ausentismos_original...")
             log_container.info("📊 Leyendo base de diagnósticos...")
             progress_bar.progress(50)
             
-            ruta_validado = validar_ausentismos(ruta_base, ruta_reporte)
+            ruta_validado = validar_ausentismos_original(ruta_base, ruta_reporte)
             
             log_container.info("📈 Combinando datos del reporte...")
             progress_bar.progress(70)
@@ -441,13 +441,13 @@ if archivo_validado and archivo_tiendas:
             log_container.info("✅ Archivos verificados, ejecutando función de tiendas...")
             progress_bar.progress(50)
             
-            # Ejecutar agregado de tiendas - FUNCIÓN ORIGINAL
-            ruta_final = f"salidas/reporte_final_independiente_{timestamp}.csv"
+            # Ejecutar agregado de tiendas - FUNCIÓN ORIGINAL DEL GITHUB
+            ruta_final = f"salidas/reporte_tiendas_{timestamp}.csv"
             
-            log_container.info("🔗 Ejecutando agregar_tiendas_directo()...")
+            log_container.info("🔗 Ejecutando agregar_tiendas_modificado (GitHub)...")
             progress_bar.progress(60)
             
-            resultado = agregar_tiendas_directo(
+            resultado = agregar_tiendas_modificado(
                 ruta_validado_temp,
                 ruta_tiendas_temp, 
                 ruta_final
@@ -461,10 +461,23 @@ if archivo_validado and archivo_tiendas:
                 # Leer resultado final
                 df_final = pd.read_csv(resultado, encoding='utf-8-sig')
                 
-                log_container.success(f"✅ PROCESO COMPLETADO: {len(df_final):,} registros")
+                # VERIFICAR LA COLUMNA value_tienda - DEBUG
+                if 'value_tienda' in df_final.columns:
+                    sample_values = df_final['value_tienda'].head(10).tolist()
+                    log_container.info(f"🔍 DEBUG value_tienda: {sample_values}")
+                    
+                    # Verificar si tiene ceros adicionales
+                    tiene_ceros = df_final['value_tienda'].astype(str).str.endswith('0').sum()
+                    log_container.info(f"🔍 Valores que terminan en 0: {tiene_ceros}")
+                
+                # VERIFICAR si la función original hizo su trabajo
+                if 'Tienda' in df_final.columns:
+                    log_container.warning("⚠️ Columna 'Tienda' original aún existe - debe ser 'value_tienda'")
+                    
+                log_container.success(f"✅ PROCESO GITHUB COMPLETADO: {len(df_final):,} registros")
                 progress_bar.progress(95)
                 
-                st.success(f"🎉 ¡ÉXITO! - {len(df_final):,} registros procesados independientemente")
+                st.success(f"🎉 ¡ÉXITO CON CÓDIGO GITHUB! - {len(df_final):,} registros procesados")
                 
                 # VERIFICAR LA COLUMNA value_tienda
                 if 'value_tienda' in df_final.columns:
@@ -475,9 +488,9 @@ if archivo_validado and archivo_tiendas:
                 csv_final = df_final.to_csv(index=False, encoding='utf-8-sig')
                 
                 st.download_button(
-                    label="📥 DESCARGAR RESULTADO FINAL",
+                    label="📥 DESCARGAR REPORTE CON TIENDAS",
                     data=csv_final,
-                    file_name=f"reporte_final_independiente_{timestamp}.csv",
+                    file_name=f"reporte_tiendas_{timestamp}.csv",
                     mime="text/csv",
                     type="primary",
                     use_container_width=True
