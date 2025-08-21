@@ -1,9 +1,9 @@
-#tiendas
+#tiendas_modificado
 import pandas as pd
 
-def agregar_tiendas_directo(ruta_csv, ruta_excel, ruta_salida):
-    """Agrega tiendas SIN JODER los datos originales"""
-    print("🔥 MERGE DIRECTO - SIN JODER")
+def agregar_tiendas_modificado(ruta_csv, ruta_excel, ruta_salida):
+    """Agrega tiendas SIN JODER los datos originales - VERSIÓN MODIFICADA"""
+    print("🔥 MERGE DIRECTO - SIN JODER (MODIFICADO)")
     
     # Leer CSV SIN CAMBIAR TIPOS - FORZAR STRING EN COLUMNAS NUMÉRICAS
     df_csv = pd.read_csv(ruta_csv, encoding='utf-8-sig', 
@@ -30,18 +30,14 @@ def agregar_tiendas_directo(ruta_csv, ruta_excel, ruta_salida):
     print(f"📊 TIPOS EXCEL:")
     print(f"   myCECO: {df_excel['myCECO'].dtype} | Muestra: {df_excel['myCECO'].head(3).tolist()}")
     
-    # Seleccionar solo las columnas que REALMENTE existen y son útiles
+    # COLUMNAS MODIFICADAS - SOLO LAS QUE NECESITAMOS
     columnas_utiles = ['myCECO']
     ceco_col = 'myCECO'
     
-    # Agregar otras columnas útiles que SÍ existen
+    # SOLO agregar Tienda y Alias (NO region, zona, etc.)
     cols_disponibles = {
         'Tienda': 'value_tienda',
-        'Alias': 'nombre_tienda',          # Cambié de no_tienda a nombre_tienda
-        'Region': 'region',
-        'Zona': 'zona',
-        'Ciudad Corregida': 'nombre_de_la_tienda',
-        'Departamento Corregido': 'direccion_laboral'
+        'Alias': 'nombre_tienda'          # Solo estas dos columnas
     }
     
     mapeo = {}
@@ -113,30 +109,133 @@ def agregar_tiendas_directo(ruta_csv, ruta_excel, ruta_salida):
     # Quitar columnas temporales
     df_resultado = df_resultado.drop(['centro_limpio', 'ceco_limpio'], axis=1)
     
-    # Llenar vacíos
+    # 🎯 NUEVA LÓGICA: Mover descripcion1 a nombre_tienda y eliminar descripcion1
+    print(f"\n🔧 MOVIENDO descripcion1 → nombre_tienda Y ELIMINANDO descripcion1:")
+    
+    if 'nombre_tienda' in df_resultado.columns and 'descripcion1' in df_resultado.columns:
+        # Contar datos en descripcion1
+        datos_desc = (df_resultado['descripcion1'] != '').sum()
+        print(f"   📊 Registros con descripcion1: {datos_desc:,}")
+        
+        # Contar nombre_tienda vacíos
+        nombre_vacios_antes = (df_resultado['nombre_tienda'] == '').sum()
+        print(f"   📊 nombre_tienda vacíos ANTES: {nombre_vacios_antes:,}")
+        
+        # MOVER: Solo llenar nombre_tienda vacío con descripcion1
+        mask_nombre_vacio = (df_resultado['nombre_tienda'] == '') | (df_resultado['nombre_tienda'].isna())
+        mask_desc_lleno = (df_resultado['descripcion1'] != '') & (df_resultado['descripcion1'].notna())
+        
+        # Aplicar solo donde nombre_tienda está vacío Y descripcion1 tiene datos
+        mask_mover = mask_nombre_vacio & mask_desc_lleno
+        
+        if mask_mover.any():
+            df_resultado.loc[mask_mover, 'nombre_tienda'] = df_resultado.loc[mask_mover, 'descripcion1']
+            movidos = mask_mover.sum()
+            print(f"   ✅ Registros movidos: {movidos:,}")
+            
+            # Mostrar ejemplos de lo que se movió
+            ejemplos = df_resultado[mask_mover][['centro_de_coste', 'nombre_tienda']].head(3)
+            print(f"   🔍 Ejemplos de datos movidos:")
+            for i, (_, row) in enumerate(ejemplos.iterrows()):
+                print(f"      {i+1}. Centro: {row['centro_de_coste']} → nombre_tienda: '{row['nombre_tienda']}'")
+        
+        # ELIMINAR la columna descripcion1
+        df_resultado = df_resultado.drop('descripcion1', axis=1)
+        print(f"   🗑️ Columna 'descripcion1' ELIMINADA")
+        
+        # Verificar resultado final
+        nombre_vacios_despues = (df_resultado['nombre_tienda'] == '').sum()
+        print(f"   📊 nombre_tienda vacíos DESPUÉS: {nombre_vacios_despues:,}")
+        
+    else:
+        print(f"   ⚠️ No se encontraron las columnas necesarias")
+        if 'nombre_tienda' not in df_resultado.columns:
+            print(f"      ❌ Falta: nombre_tienda")
+        if 'descripcion1' not in df_resultado.columns:
+            print(f"      ❌ Falta: descripcion1")
+    
+    # Llenar otros vacíos
     df_resultado = df_resultado.fillna('')
     
+    # 🎯 REORDENAR COLUMNAS SEGÚN EL ORDEN ESPECIFICADO
+    print(f"\n📋 REORDENANDO COLUMNAS...")
+    
+    orden_deseado = [
+        'numero_de_personal', 'nombre_emplcand', 'descripcion', 'numero_id', 
+        'clase_absentpres', 'txtclpresab', 'clase_absentpres1', 'txtclpresab1', 
+        'descripcenfermedad', 'descripcenfermedad1', 'inicio_de_validez', 'fin_de_validez', 
+        'modificado_el', 'modificado_por', 'division_de_personal', 'texto_division_pers', 
+        'dias_presencabs', 'dias_naturales', 'final_salario_enfer', 'area_de_personal', 
+        'texto_subdivpers', 'centro_de_coste', 'nombre_tienda', 'sexo', 
+        'denominacion_funcion', 'id_entidad_de_seguridad_social', 'subtipo', 
+        'area_de_nomina', 'estado_empleado', 'value_tienda'
+    ]
+    
+    # Verificar qué columnas existen
+    columnas_existentes = []
+    columnas_faltantes = []
+    
+    for col in orden_deseado:
+        if col in df_resultado.columns:
+            columnas_existentes.append(col)
+        else:
+            columnas_faltantes.append(col)
+    
+    # Agregar columnas adicionales que no están en el orden (por si acaso)
+    columnas_adicionales = [col for col in df_resultado.columns if col not in orden_deseado]
+    
+    # Reordenar
+    columnas_finales = columnas_existentes + columnas_adicionales
+    df_resultado = df_resultado[columnas_finales]
+    
+    print(f"   ✅ Columnas ordenadas: {len(columnas_existentes)}")
+    if columnas_faltantes:
+        print(f"   ⚠️ Columnas faltantes: {len(columnas_faltantes)} → {columnas_faltantes[:5]}...")
+    if columnas_adicionales:
+        print(f"   📋 Columnas adicionales al final: {columnas_adicionales}")
+    
+    print(f"   🎯 Orden final verificado: nombre_tienda en posición {columnas_finales.index('nombre_tienda') + 1}")
+    print(f"   🎯 Orden final verificado: value_tienda en posición {columnas_finales.index('value_tienda') + 1}")
+    
     # VERIFICAR QUE NO SE JODAN LOS DATOS ORIGINALES
-    print(f"🔍 VERIFICACIÓN POST-MERGE:")
+    print(f"\n🔍 VERIFICACIÓN POST-MERGE:")
     cols_verificar = ['numero_de_personal', 'numero_id', 'centro_de_coste']
     for col in cols_verificar:
         if col in df_resultado.columns:
             print(f"   {col} original: {df_csv[col].head(3).tolist()}")
             print(f"   {col} resultado: {df_resultado[col].head(3).tolist()}")
-            print(f"   ¿Iguales? {df_csv[col].head(3).tolist() == df_resultado[col].head(3).tolist()}")
+            iguales = df_csv[col].head(3).tolist() == df_resultado[col].head(3).tolist()
+            print(f"   ¿Iguales? {iguales}")
     
     # Guardar
+    print(f"\n💾 GUARDANDO: {ruta_salida}")
     df_resultado.to_csv(ruta_salida, index=False, encoding='utf-8-sig')
     
-    # Stats
+    # Stats finales
     nuevas_cols = [col for col in df_resultado.columns if col not in df_csv.columns]
-    if nuevas_cols:
-        primera = nuevas_cols[0]
-        con_data = (df_resultado[primera] != '').sum()
-        print(f"📊 Merge exitoso: {con_data}/{len(df_resultado)} ({con_data/len(df_resultado)*100:.1f}%)")
-        print(f"📋 Columnas agregadas: {nuevas_cols}")
+    print(f"\n📊 ESTADÍSTICAS FINALES:")
+    print(f"   📁 Registros totales: {len(df_resultado):,}")
     
-    print(f"✅ LISTO: {ruta_salida}")
+    if nuevas_cols:
+        print(f"   📋 Columnas agregadas: {nuevas_cols}")
+        
+        # Estadísticas de value_tienda
+        if 'value_tienda' in nuevas_cols:
+            con_value = (df_resultado['value_tienda'] != '').sum()
+            print(f"   🏪 Con value_tienda: {con_value:,}/{len(df_resultado):,} ({con_value/len(df_resultado)*100:.1f}%)")
+        
+        # Estadísticas de nombre_tienda
+        if 'nombre_tienda' in nuevas_cols:
+            con_nombre = (df_resultado['nombre_tienda'] != '').sum()
+            print(f"   🏷️ Con nombre_tienda: {con_nombre:,}/{len(df_resultado):,} ({con_nombre/len(df_resultado)*100:.1f}%)")
+    
+    # Verificar que descripcion1 fue eliminada
+    if 'descripcion1' in df_resultado.columns:
+        print(f"   ⚠️ ADVERTENCIA: descripcion1 AÚN existe (no se eliminó)")
+    else:
+        print(f"   ✅ descripcion1 eliminada correctamente")
+    
+    print(f"✅ COMPLETADO: {ruta_salida}")
     return ruta_salida
 
 # Ejecutar
@@ -145,4 +244,4 @@ if __name__ == "__main__":
     excel_tiendas = r"C:\Users\jjbustos\OneDrive - Grupo Jerónimo Martins\Documents\dash_ausentismos\datos_base\0002 Dash Stores.xlsx"
     salida_final = r"C:\Users\jjbustos\OneDrive - Grupo Jerónimo Martins\Documents\dash_ausentismos\salidas\validation_report_45_con_tiendas.csv"
     
-    agregar_tiendas_directo(csv_validado, excel_tiendas, salida_final)
+    agregar_tiendas_modificado(csv_validado, excel_tiendas, salida_final)
