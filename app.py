@@ -461,20 +461,29 @@ if archivo_validado and archivo_tiendas:
                 # Leer resultado final
                 df_final = pd.read_csv(resultado, encoding='utf-8-sig')
                 
-                # VERIFICAR LA COLUMNA value_tienda - DEBUG
+                # 🔥 FORZAR LIMPIEZA DE value_tienda AQUÍ EN LA APP
                 if 'value_tienda' in df_final.columns:
-                    sample_values = df_final['value_tienda'].head(10).tolist()
-                    log_container.info(f"🔍 DEBUG value_tienda: {sample_values}")
+                    log_container.info("🔧 FORZANDO limpieza de value_tienda en la app...")
                     
-                    # Verificar si tiene ceros adicionales
-                    tiene_ceros = df_final['value_tienda'].astype(str).str.endswith('0').sum()
-                    log_container.info(f"🔍 Valores que terminan en 0: {tiene_ceros}")
+                    # Función para quitar SOLO el último 0
+                    def quitar_ultimo_cero_forzado(valor):
+                        valor_str = str(valor)
+                        if valor_str.endswith('0') and len(valor_str) > 1:
+                            return valor_str[:-1]  # Quitar solo el último carácter
+                        return valor_str
+                    
+                    # ANTES de limpiar
+                    antes = df_final['value_tienda'].head(5).tolist()
+                    log_container.info(f"🔍 ANTES de limpiar: {antes}")
+                    
+                    # LIMPIAR FORZADO
+                    df_final['value_tienda'] = df_final['value_tienda'].apply(quitar_ultimo_cero_forzado)
+                    
+                    # DESPUÉS de limpiar
+                    despues = df_final['value_tienda'].head(5).tolist()
+                    log_container.info(f"✅ DESPUÉS de limpiar: {despues}")
                 
-                # VERIFICAR si la función original hizo su trabajo
-                if 'Tienda' in df_final.columns:
-                    log_container.warning("⚠️ Columna 'Tienda' original aún existe - debe ser 'value_tienda'")
-                    
-                log_container.success(f"✅ PROCESO GITHUB COMPLETADO: {len(df_final):,} registros")
+                log_container.success(f"✅ PROCESO GITHUB + LIMPIEZA FORZADA: {len(df_final):,} registros")
                 progress_bar.progress(95)
                 
                 st.success(f"🎉 ¡ÉXITO CON CÓDIGO GITHUB! - {len(df_final):,} registros procesados")
@@ -484,13 +493,18 @@ if archivo_validado and archivo_tiendas:
                     sample_values = df_final['value_tienda'].head(10).tolist()
                     st.info(f"🔍 Muestra value_tienda: {sample_values}")
                 
-                # DESCARGA AUTOMÁTICA
+                # GUARDAR EL ARCHIVO CORREGIDO
                 csv_final = df_final.to_csv(index=False, encoding='utf-8-sig')
                 
+                # También guardar archivo corregido en disco
+                ruta_corregida = f"salidas/reporte_tiendas_corregido_{timestamp}.csv"
+                df_final.to_csv(ruta_corregida, index=False, encoding='utf-8-sig')
+                log_container.info(f"💾 Archivo corregido guardado: {ruta_corregida}")
+                
                 st.download_button(
-                    label="📥 DESCARGAR REPORTE CON TIENDAS",
+                    label="📥 DESCARGAR REPORTE CORREGIDO",
                     data=csv_final,
-                    file_name=f"reporte_tiendas_{timestamp}.csv",
+                    file_name=f"reporte_tiendas_corregido_{timestamp}.csv",
                     mime="text/csv",
                     type="primary",
                     use_container_width=True
