@@ -8,11 +8,11 @@ import io
 # Agregar el directorio actual al path para importar los módulos
 sys.path.append(os.path.dirname(__file__))
 
-# Importar las funciones de validación
+# Importar las funciones de validación - EXACTAS DEL GITHUB
 try:
-    from part1_validation_reporte_45 import validar_ausentismos_original as validar_ausentismos
-    from part2_dash_store_total import agregar_tiendas_modificado as agregar_tiendas_directo
-    print("✅ Módulos importados correctamente")
+    from part1_validation_reporte_45 import validar_ausentismos_original
+    from part2_dash_store_total import agregar_tiendas_modificado
+    print("✅ Módulos importados correctamente del GitHub")
 except ImportError as e:
     st.error(f"❌ Error importando módulos: {e}")
     st.error("Asegúrate de que los archivos part1_validation_reporte_45.py y part2_dash_store_total.py estén en la misma carpeta")
