@@ -351,9 +351,9 @@ if st.button("🧹 LIMPIAR TODO", type="secondary"):
     st.rerun()
 
 st.markdown("""
-<div style="background: #d1ecf1; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid #17a2b8;">
-    <h4 style="margin-top: 0; color: #0c5460;">💡 Proceso independiente</h4>
-    <p style="margin-bottom: 0;">Sube tu CSV del Paso 1 + Excel de tiendas. No usa nada guardado en memoria.</p>
+<div style="background: #17a2b8; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid #ffffff;">
+    <h4 style="margin-top: 0; color: #ffffff;">💡 Proceso independiente</h4>
+    <p style="margin-bottom: 0; color: #ffffff;">Sube tu CSV del Paso 1 + Excel de tiendas. No usa nada guardado en memoria.</p>
 </div>
 """, unsafe_allow_html=True)
 
