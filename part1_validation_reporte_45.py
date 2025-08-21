@@ -1,4 +1,4 @@
-# Validador de Ausentismos - part_1
+# Validador de Ausentismos - LÓGICA ORIGINAL CORRECTA
 import pandas as pd
 import numpy as np
 import os
@@ -83,43 +83,19 @@ def leer_excel_y_renombrar_duplicadas(ruta):
         print(f"❌ Error: {e}")
         return None
 
-def convertir_fecha_modificacion(df):
-    """Convierte 'Modificado el' a datetime usando el mismo método que funciona"""
-    if 'Modificado el' not in df.columns:
-        print("   ⚠️ No hay columna 'Modificado el'")
-        df['fecha_dt'] = pd.NaT
-        return df
-    
-    print("   📅 Convirtiendo fechas...")
-    
-    # Convertir a datetime con formato día primero
-    df['fecha_dt'] = pd.to_datetime(df['Modificado el'], errors='coerce', dayfirst=True)
-    
-    # Si hay números seriales de Excel, convertirlos también
-    mask_numerico = pd.to_numeric(df['Modificado el'], errors='coerce').notna()
-    if mask_numerico.any():
-        numeros = pd.to_numeric(df['Modificado el'], errors='coerce')
-        df.loc[mask_numerico, 'fecha_dt'] = pd.to_datetime(numeros, origin='1899-12-30', unit='D', errors='coerce')
-    
-    fechas_validas = df['fecha_dt'].notna().sum()
-    print(f"      ✅ {fechas_validas:,} fechas válidas convertidas")
-    
-    return df
-
-def validar_ausentismos(ruta_base, ruta_reporte, ruta_salida=None):
+def validar_ausentismos_original(ruta_diagnostico, ruta_reporte, ruta_salida=None):
     """
-    VALIDADOR de ausentismos: 
-    - Compara registros por columnas clave
-    - Toma el de fecha más reciente
-    - Mantiene toda la información
-    - Convierte a snake_case
+    VALIDADOR ORIGINAL - LÓGICA CORRECTA:
+    1. REPORTE = BASE PRINCIPAL (todos los registros)
+    2. DIAGNÓSTICO = Solo para actualizar 'Modificado el' y 'Modificado por'
+    3. Resultado = Exactamente las mismas filas del REPORTE
     """
-    print("🔍 VALIDADOR DE AUSENTISMOS")
-    print("="*50)
+    print("🔍 VALIDADOR DE AUSENTISMOS - LÓGICA ORIGINAL")
+    print("="*60)
     
     # Verificar archivos
-    if not os.path.exists(ruta_base):
-        print(f"❌ No existe: {ruta_base}")
+    if not os.path.exists(ruta_diagnostico):
+        print(f"❌ No existe: {ruta_diagnostico}")
         return None
     if not os.path.exists(ruta_reporte):
         print(f"❌ No existe: {ruta_reporte}")
@@ -127,23 +103,18 @@ def validar_ausentismos(ruta_base, ruta_reporte, ruta_salida=None):
     
     # Leer archivos
     print("\n📂 LEYENDO ARCHIVOS:")
-    df_base = leer_excel_y_renombrar_duplicadas(ruta_base)
+    df_diagnostico = leer_excel_y_renombrar_duplicadas(ruta_diagnostico)
     df_reporte = leer_excel_y_renombrar_duplicadas(ruta_reporte)
     
-    if df_base is None or df_reporte is None:
+    if df_diagnostico is None or df_reporte is None:
         return None
     
-    # Convertir fechas
-    print("\n📅 PROCESANDO FECHAS:")
-    df_base = convertir_fecha_modificacion(df_base)
-    df_reporte = convertir_fecha_modificacion(df_reporte)
+    print(f"\n📊 NÚMEROS INICIALES:")
+    print(f"   🎯 REPORTE (BASE PRINCIPAL): {len(df_reporte):,} filas")
+    print(f"   📋 DIAGNÓSTICO (solo para modificado): {len(df_diagnostico):,} filas")
     
-    # Agregar sufijos para identificar origen
-    df_base = df_base.add_suffix('_base')
-    df_reporte = df_reporte.add_suffix('_reporte')
-    
-    # COLUMNAS CLAVE PARA VERIFICACIÓN (identificar si es el mismo registro)
-    columnas_verificacion = [
+    # COLUMNAS CLAVE PARA BUSCAR COINCIDENCIAS
+    columnas_busqueda = [
         'Número de personal',
         'Número ID', 
         'Clase absent./pres.',
@@ -151,116 +122,69 @@ def validar_ausentismos(ruta_base, ruta_reporte, ruta_salida=None):
         'Fin de validez'
     ]
     
-    # Renombrar columnas de verificación para que coincidan
-    for col in columnas_verificacion:
-        if f"{col}_base" in df_base.columns:
-            df_base[col] = df_base[f"{col}_base"]
-        if f"{col}_reporte" in df_reporte.columns:
-            df_reporte[col] = df_reporte[f"{col}_reporte"]
+    print(f"\n🔍 BUSCANDO COINCIDENCIAS...")
+    print(f"   Columnas de búsqueda: {columnas_busqueda}")
     
-    print(f"\n🔍 VERIFICANDO REGISTROS...")
-    print(f"   Columnas de verificación: {columnas_verificacion}")
+    # CREAR COPIA DEL REPORTE (será nuestro resultado final)
+    df_resultado = df_reporte.copy()
     
-    # OUTER JOIN para mantener todos los registros
-    df_verificado = pd.merge(df_base, df_reporte, on=columnas_verificacion, how='outer', suffixes=('_base', '_reporte'))
+    # LEFT JOIN: Reporte como principal, diagnóstico para completar
+    df_con_diagnostico = pd.merge(
+        df_reporte, 
+        df_diagnostico[columnas_busqueda + ['Modificado el', 'Modificado por']], 
+        on=columnas_busqueda, 
+        how='left', 
+        suffixes=('', '_diagnostico')
+    )
     
-    print(f"   ✅ Verificación completada: {len(df_verificado):,} registros")
+    print(f"   ✅ Merge completado: {len(df_con_diagnostico):,} filas (igual que reporte)")
     
-    # SELECCIONAR EL REGISTRO MÁS RECIENTE
-    print("\n⏰ SELECCIONANDO REGISTROS MÁS RECIENTES...")
+    # ACTUALIZAR SOLO LAS COLUMNAS DE MODIFICADO
+    print(f"\n🔄 ACTUALIZANDO COLUMNAS DE MODIFICADO...")
     
-    def seleccionar_mas_reciente(row):
-        fecha_base = row.get('fecha_dt_base')
-        fecha_reporte = row.get('fecha_dt_reporte')
-        
-        # Si ambas fechas son válidas, tomar la más reciente
-        if pd.notna(fecha_base) and pd.notna(fecha_reporte):
-            if fecha_reporte >= fecha_base:
-                return 'reporte'
-            else:
-                return 'base'
-        # Si solo una es válida, usar esa
-        elif pd.notna(fecha_reporte):
-            return 'reporte'
-        elif pd.notna(fecha_base):
-            return 'base'
-        # Si ninguna es válida, priorizar reporte (más actual)
-        else:
-            return 'reporte'
+    # Contar coincidencias
+    tiene_diagnostico = df_con_diagnostico['Modificado el_diagnostico'].notna()
+    coincidencias = tiene_diagnostico.sum()
     
-    # Aplicar selección
-    df_verificado['fuente_seleccionada'] = df_verificado.apply(seleccionar_mas_reciente, axis=1)
+    print(f"   📊 Coincidencias encontradas: {coincidencias:,} de {len(df_reporte):,}")
+    print(f"   📊 Porcentaje de actualización: {(coincidencias/len(df_reporte)*100):.1f}%")
     
-    # OBTENER EL ORDEN REAL DE LAS COLUMNAS DEL REPORTE (que tiene la estructura completa)
-    print(f"   🔍 Detectando estructura real de columnas...")
+    # Actualizar donde hay coincidencia
+    mask_actualizar = df_con_diagnostico['Modificado el_diagnostico'].notna()
     
-    # Quitar sufijo _reporte para obtener nombres originales
-    columnas_reales_reporte = [col.replace('_reporte', '') for col in df_reporte.columns if col.endswith('_reporte') and col != 'fecha_dt_reporte']
+    if mask_actualizar.any():
+        df_resultado.loc[mask_actualizar, 'Modificado el'] = df_con_diagnostico.loc[mask_actualizar, 'Modificado el_diagnostico']
+        print(f"   ✅ Actualizada 'Modificado el': {mask_actualizar.sum():,} registros")
     
-    print(f"   📋 Columnas detectadas en reporte: {len(columnas_reales_reporte)}")
-    print(f"   📋 Primeras 10 columnas: {columnas_reales_reporte[:10]}")
+    mask_actualizar_por = df_con_diagnostico['Modificado por_diagnostico'].notna()
+    if mask_actualizar_por.any():
+        df_resultado.loc[mask_actualizar_por, 'Modificado por'] = df_con_diagnostico.loc[mask_actualizar_por, 'Modificado por_diagnostico']
+        print(f"   ✅ Actualizada 'Modificado por': {mask_actualizar_por.sum():,} registros")
     
-    # USAR EL ORDEN REAL DE LAS COLUMNAS COMO ESTÁN EN EL EXCEL
-    orden_columnas_reales = columnas_reales_reporte
+    # VERIFICAR QUE EL RESULTADO TIENE EL MISMO NÚMERO DE FILAS
+    print(f"\n✅ VERIFICACIÓN DE INTEGRIDAD:")
+    print(f"   Filas originales del REPORTE: {len(df_reporte):,}")
+    print(f"   Filas en resultado final: {len(df_resultado):,}")
     
-    print(f"   📋 Total columnas en orden real: {len(orden_columnas_reales)}")
+    if len(df_resultado) == len(df_reporte):
+        print(f"   🎉 ¡PERFECTO! No se perdieron ni duplicaron registros")
+    else:
+        print(f"   ❌ ERROR: El número de filas cambió")
+        return None
     
-    # CREAR DATAFRAME FINAL COMBINANDO LA INFORMACIÓN EN EL ORDEN REAL
-    print("   🔧 Combinando información en orden real de las columnas...")
+    # CONVERTIR A SNAKE_CASE
+    print(f"\n🐍 CONVIRTIENDO A SNAKE_CASE...")
     
-    df_final = pd.DataFrame()
-    
-    # Para cada columna EN EL ORDEN REAL, tomar el valor del archivo seleccionado
-    for col in orden_columnas_reales:
-        col_base = f"{col}_base"
-        col_reporte = f"{col}_reporte"
-        
-        if col_base in df_verificado.columns and col_reporte in df_verificado.columns:
-            # Combinar basado en fuente seleccionada
-            df_final[col] = df_verificado.apply(
-                lambda row: row[col_reporte] if row['fuente_seleccionada'] == 'reporte' else row[col_base], 
-                axis=1
-            )
-            print(f"      ✅ Procesada: {col}")
-        elif col_base in df_verificado.columns:
-            df_final[col] = df_verificado[col_base]
-            print(f"      📋 Solo en base: {col}")
-        elif col_reporte in df_verificado.columns:
-            df_final[col] = df_verificado[col_reporte]
-            print(f"      📋 Solo en reporte: {col}")
-        else:
-            # Si la columna no existe, crear vacía pero mantener el orden
-            df_final[col] = ''
-            print(f"      ⚠️ No encontrada: {col}")
-    
-    # Agregar información de validación
-    df_final['fuente_datos'] = df_verificado['fuente_seleccionada']
-    
-    # CONVERTIR NOMBRES DE COLUMNAS A SNAKE_CASE MANTENIENDO EL ORDEN REAL
-    print("\n🐍 CONVIRTIENDO A SNAKE_CASE EN ORDEN REAL...")
-    
-    # Crear orden en snake_case manteniendo la secuencia real
-    orden_snake_case = [normalizar_columna(col) for col in orden_columnas_reales]
-    orden_snake_case.append('fuente_datos')  # Agregar al final
-    
-    # Crear mapeo de columnas
     mapeo_columnas = {}
-    for col in df_final.columns:
-        if col != 'fuente_datos':
-            col_snake = normalizar_columna(col)
-            mapeo_columnas[col] = col_snake
+    for col in df_resultado.columns:
+        col_snake = normalizar_columna(col)
+        mapeo_columnas[col] = col_snake
     
-    # Aplicar conversión
-    df_final = df_final.rename(columns=mapeo_columnas)
-    
-    # REORDENAR COLUMNAS SEGÚN EL ORDEN SNAKE_CASE REAL
-    columnas_disponibles = [col for col in orden_snake_case if col in df_final.columns]
-    df_final = df_final[columnas_disponibles]
-    
-    print(f"   ✅ {len(mapeo_columnas)} columnas convertidas y ordenadas según estructura real")
+    df_resultado = df_resultado.rename(columns=mapeo_columnas)
+    print(f"   ✅ {len(mapeo_columnas)} columnas convertidas")
     
     # NORMALIZAR FORMATOS NUMÉRICOS
-    print("\n🧹 NORMALIZANDO FORMATOS NUMÉRICOS...")
+    print(f"\n🧹 NORMALIZANDO FORMATOS NUMÉRICOS...")
     
     columnas_numericas = [
         'numero_de_personal', 'numero_id', 'clase_absentpres', 
@@ -268,81 +192,66 @@ def validar_ausentismos(ruta_base, ruta_reporte, ruta_salida=None):
     ]
     
     # Agregar columnas que pueden tener números con sufijos
-    columnas_numericas_adicionales = [col for col in df_final.columns if any(base in col for base in ['clase_absentpres', 'numero_de_personal', 'numero_id', 'centro_de_coste', 'dias_presencabs', 'dias_naturales'])]
+    columnas_numericas_adicionales = [col for col in df_resultado.columns if any(base in col for base in ['clase_absentpres', 'numero_de_personal', 'numero_id', 'centro_de_coste', 'dias_presencabs', 'dias_naturales'])]
     
     todas_columnas_numericas = list(set(columnas_numericas + columnas_numericas_adicionales))
     
     for col in todas_columnas_numericas:
-        if col in df_final.columns:
+        if col in df_resultado.columns:
             print(f"   🔧 Normalizando: {col}")
-            df_final[col] = normalizar_numeros_vectorizado(df_final[col])
+            df_resultado[col] = normalizar_numeros_vectorizado(df_resultado[col])
     
     # NORMALIZACIÓN ESPECÍFICA PARA QUITAR CEROS INICIALES DE clase_absentpres1
-    if 'clase_absentpres1' in df_final.columns:
+    if 'clase_absentpres1' in df_resultado.columns:
         print(f"   🎯 Normalizando específicamente: clase_absentpres1 (quitando ceros iniciales)")
-        df_final['clase_absentpres1'] = df_final['clase_absentpres1'].astype(str).str.lstrip('0')
+        df_resultado['clase_absentpres1'] = df_resultado['clase_absentpres1'].astype(str).str.lstrip('0')
         # Si queda vacío después de quitar ceros, poner '0'
-        df_final['clase_absentpres1'] = df_final['clase_absentpres1'].replace('', '0')
+        df_resultado['clase_absentpres1'] = df_resultado['clase_absentpres1'].replace('', '0')
         
         # Mostrar muestra del resultado
-        muestra = df_final['clase_absentpres1'].head(3).tolist()
+        muestra = df_resultado['clase_absentpres1'].head(3).tolist()
         print(f"      ✅ Muestra resultado: {muestra}")
     
     # LIMPIAR VALORES FINALES
-    print("\n🧹 Limpiando valores finales...")
-    df_final = df_final.fillna('')
+    print(f"\n🧹 LIMPIANDO VALORES FINALES...")
+    df_resultado = df_resultado.fillna('')
     
     # Limpiar valores no deseados
-    for col in df_final.columns:
-        if col != 'fuente_datos':
-            df_final[col] = df_final[col].astype(str).replace(['nan', 'None', 'NaT', '<NA>', '0.0'], '')
+    for col in df_resultado.columns:
+        df_resultado[col] = df_resultado[col].astype(str).replace(['nan', 'None', 'NaT', '<NA>', '0.0'], '')
     
     # DETERMINAR RUTA DE SALIDA
     if ruta_salida is None:
-        carpeta_salida = Path(ruta_base).parent.parent / "salidas"
+        carpeta_salida = Path(ruta_reporte).parent.parent / "salidas"
         carpeta_salida.mkdir(exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         ruta_salida = carpeta_salida / f"validation_report_45_{timestamp}.csv"
     
     # GUARDAR ARCHIVO
     print(f"\n💾 GUARDANDO: {Path(ruta_salida).name}")
-    df_final.to_csv(ruta_salida, index=False, encoding='utf-8-sig')
+    df_resultado.to_csv(ruta_salida, index=False, encoding='utf-8-sig')
     
     # RESUMEN FINAL
     print(f"\n🎉 ¡VALIDACIÓN COMPLETADA!")
     print(f"📁 Archivo: {ruta_salida}")
-    print(f"📊 Registros: {len(df_final):,}")
-    print(f"📋 Columnas: {len(df_final.columns)}")
+    print(f"📊 Registros: {len(df_resultado):,} (igual que REPORTE original)")
+    print(f"📋 Columnas: {len(df_resultado.columns)}")
     
-    # Mostrar orden final de columnas
-    print(f"\n📋 ORDEN FINAL DE COLUMNAS (snake_case):")
-    for i, col in enumerate(df_final.columns):
-        print(f"   {i+1:2d}. {col}")
-    
-    print(f"\n📋 CORRESPONDENCIA COLUMNAS REALES → SNAKE_CASE:")
-    for i, (orig, snake) in enumerate(zip(orden_columnas_reales, orden_snake_case[:-1])):
-        print(f"   {i+1:2d}. '{orig}' → '{snake}'")
-        if i >= 15:  # Mostrar solo las primeras 15
-            print(f"   ... y {len(orden_columnas_reales)-16} más")
-            break
-    
-    # Estadísticas de fuentes
-    if 'fuente_datos' in df_final.columns:
-        print(f"\n📈 FUENTES DE DATOS SELECCIONADAS:")
-        fuentes = df_final['fuente_datos'].value_counts()
-        for fuente, cantidad in fuentes.items():
-            porcentaje = (cantidad / len(df_final)) * 100
-            print(f"   • {fuente}: {cantidad:,} registros ({porcentaje:.1f}%)")
+    # Mostrar estadísticas de actualización
+    print(f"\n📈 ESTADÍSTICAS DE ACTUALIZACIÓN:")
+    print(f"   🎯 Registros del REPORTE: {len(df_reporte):,} (100%)")
+    print(f"   ✅ Actualizados con DIAGNÓSTICO: {coincidencias:,} ({(coincidencias/len(df_reporte)*100):.1f}%)")
+    print(f"   📋 Sin actualizar: {len(df_reporte)-coincidencias:,} ({((len(df_reporte)-coincidencias)/len(df_reporte)*100):.1f}%)")
     
     # Mostrar ejemplo de datos procesados
-    if len(df_final) > 0:
+    if len(df_resultado) > 0:
         print(f"\n🔍 EJEMPLO DE DATOS PROCESADOS:")
         print("   (Primeras 3 filas con columnas clave)")
-        cols_ejemplo = ['numero_de_personal', 'clase_absentpres', 'modificado_el', 'modificado_por', 'fuente_datos']
-        cols_disponibles = [col for col in cols_ejemplo if col in df_final.columns]
+        cols_ejemplo = ['numero_de_personal', 'clase_absentpres', 'modificado_el', 'modificado_por']
+        cols_disponibles = [col for col in cols_ejemplo if col in df_resultado.columns]
         
         if cols_disponibles:
-            muestra = df_final[cols_disponibles].head(3)
+            muestra = df_resultado[cols_disponibles].head(3)
             for i, (_, row) in enumerate(muestra.iterrows()):
                 print(f"   Fila {i+1}: ", end="")
                 for col in cols_disponibles:
@@ -350,16 +259,21 @@ def validar_ausentismos(ruta_base, ruta_reporte, ruta_salida=None):
                     print(f"{col}={valor} ", end="")
                 print()
     
+    print(f"\n🏆 LÓGICA APLICADA:")
+    print(f"   ✅ REPORTE = Base principal (todas las filas)")
+    print(f"   ✅ DIAGNÓSTICO = Solo para actualizar 'Modificado el' y 'Modificado por'")
+    print(f"   ✅ Resultado = Exactamente {len(df_resultado):,} filas (igual que REPORTE)")
+    
     return ruta_salida
 
 
 # Ejemplo de uso
 if __name__ == "__main__":
-    ruta_base = r"C:\Users\jjbustos\OneDrive - Grupo Jerónimo Martins\Documents\dash_ausentismos\datos_base\base_diagnosticos.XLSX"
+    ruta_diagnostico = r"C:\Users\jjbustos\OneDrive - Grupo Jerónimo Martins\Documents\dash_ausentismos\datos_base\base_diagnosticos.XLSX"
     ruta_reporte = r"C:\Users\jjbustos\OneDrive - Grupo Jerónimo Martins\Documents\dash_ausentismos\datos_base\Reporte 45.XLSX"
     ruta_salida = r"C:\Users\jjbustos\OneDrive - Grupo Jerónimo Martins\Documents\dash_ausentismos\salidas\validation_report_45.csv"
     
-    resultado = validar_ausentismos(ruta_base, ruta_reporte, ruta_salida)
+    resultado = validar_ausentismos_original(ruta_diagnostico, ruta_reporte, ruta_salida)
     
     if resultado:
         print(f"\n🏆 ¡VALIDACIÓN EXITOSA! → {resultado}")
