@@ -172,28 +172,8 @@ if archivo_base and archivo_reporte:
     """, unsafe_allow_html=True)
     
     if st.button("🚀 PROCESAR ARCHIVOS", type="primary", use_container_width=True):
-elif archivo_base and not archivo_reporte:
-    st.markdown("""
-    <div style="background: #fff3cd; padding: 1rem; border-radius: 8px; margin: 1rem 0; text-align: center;">
-        <h4 style="color: #856404; margin: 0;">⚠️ Falta el Reporte 45</h4>
-        <p style="margin: 0.5rem 0 0 0;">Sube también el archivo del Reporte 45 para continuar</p>
-    </div>
-    """, unsafe_allow_html=True)
-elif not archivo_base and archivo_reporte:
-    st.markdown("""
-    <div style="background: #fff3cd; padding: 1rem; border-radius: 8px; margin: 1rem 0; text-align: center;">
-        <h4 style="color: #856404; margin: 0;">⚠️ Falta la Base de Diagnósticos</h4>
-        <p style="margin: 0.5rem 0 0 0;">Sube también el archivo de diagnósticos para continuar</p>
-    </div>
-    """, unsafe_allow_html=True)
-else:
-    st.markdown("""
-    <div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; margin: 1rem 0; text-align: center; border: 2px dashed #dee2e6;">
-        <h3 style="color: #6c757d; margin: 0;">📁 Sube tus 2 archivos Excel</h3>
-        <p style="margin: 0.5rem 0 0 0; color: #6c757d;">Arrastra los archivos a las cajas de arriba o haz clic para seleccionarlos</p>
-    </div>
-    """, unsafe_allow_html=True)
         with st.spinner("🔄 Procesando validación..."):
+            try:
                 # Guardar archivos temporalmente
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                 ruta_base = f"temp/base_{timestamp}.xlsx"
@@ -253,6 +233,28 @@ else:
                 st.error(f"❌ Error en validación: {str(e)}")
                 st.exception(e)
 
+elif archivo_base and not archivo_reporte:
+    st.markdown("""
+    <div style="background: #fff3cd; padding: 1rem; border-radius: 8px; margin: 1rem 0; text-align: center;">
+        <h4 style="color: #856404; margin: 0;">⚠️ Falta el Reporte 45</h4>
+        <p style="margin: 0.5rem 0 0 0;">Sube también el archivo del Reporte 45 para continuar</p>
+    </div>
+    """, unsafe_allow_html=True)
+elif not archivo_base and archivo_reporte:
+    st.markdown("""
+    <div style="background: #fff3cd; padding: 1rem; border-radius: 8px; margin: 1rem 0; text-align: center;">
+        <h4 style="color: #856404; margin: 0;">⚠️ Falta la Base de Diagnósticos</h4>
+        <p style="margin: 0.5rem 0 0 0;">Sube también el archivo de diagnósticos para continuar</p>
+    </div>
+    """, unsafe_allow_html=True)
+else:
+    st.markdown("""
+    <div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; margin: 1rem 0; text-align: center; border: 2px dashed #dee2e6;">
+        <h3 style="color: #6c757d; margin: 0;">📁 Sube tus 2 archivos Excel</h3>
+        <p style="margin: 0.5rem 0 0 0; color: #6c757d;">Arrastra los archivos a las cajas de arriba o haz clic para seleccionarlos</p>
+    </div>
+    """, unsafe_allow_html=True)
+
 st.markdown('</div>', unsafe_allow_html=True)
 
 # PASO 2: AGREGAR TIENDAS
@@ -294,14 +296,8 @@ else:
         
         if st.button("🔗 AGREGAR TIENDAS", type="primary", use_container_width=True):
             with st.spinner("🔄 Agregando información de tiendas..."):
-    else:
-        st.markdown("""
-        <div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; margin: 1rem 0; text-align: center; border: 2px dashed #dee2e6;">
-            <h3 style="color: #6c757d; margin: 0;">🏪 Sube el archivo de tiendas</h3>
-            <p style="margin: 0.5rem 0 0 0; color: #6c757d;">Arrastra el archivo Excel con datos de tiendas</p>
-        </div>
-        """, unsafe_allow_html=True)
                 try:
+                    # Guardar archivo de tiendas temporalmente
                     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                     ruta_tiendas = f"temp/tiendas_{timestamp}.xlsx"
                     
@@ -384,6 +380,13 @@ else:
                 except Exception as e:
                     st.error(f"❌ Error agregando tiendas: {str(e)}")
                     st.exception(e)
+    else:
+        st.markdown("""
+        <div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; margin: 1rem 0; text-align: center; border: 2px dashed #dee2e6;">
+            <h3 style="color: #6c757d; margin: 0;">🏪 Sube el archivo de tiendas</h3>
+            <p style="margin: 0.5rem 0 0 0; color: #6c757d;">Arrastra el archivo Excel con datos de tiendas</p>
+        </div>
+        """, unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
 
